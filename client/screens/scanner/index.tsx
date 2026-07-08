@@ -26,8 +26,8 @@ interface AnalysisResult {
   timestamp: number;
 }
 
-const FRAME_COUNT = 8;
-const RECORDING_DURATION = 16;
+const FRAME_COUNT = 6;
+const RECORDING_DURATION = 12;
 
 const COMMON_TARGETS = ['洗手间/厕所', '出口', '电梯', '楼梯', '收银台'];
 
@@ -94,9 +94,9 @@ export default function ScannerPage() {
     isCapturingRef.current = true;
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.9,
+        quality: 0.5,
         base64: true,
-        skipProcessing: false,
+        skipProcessing: true,
       });
       if (photo?.base64) {
         // photo.base64 may already include data URI prefix (e.g. data:image/png;base64,...)
@@ -121,17 +121,29 @@ export default function ScannerPage() {
       speak('正在分析周围环境，请稍候');
 
       try {
+        const totalSize = frames.reduce((sum, f) => sum + f.length, 0);
+        console.log(`[Analyze] Sending ${frames.length} frames, total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+
+        // Use AbortController for timeout (90 seconds for large image analysis)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+
         const response = await fetch(
           `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/analyze`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ images: frames, target }),
+            signal: controller.signal,
           }
         );
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-          throw new Error('Analysis failed');
+          const errText = await response.text();
+          console.error('[Analyze] API error:', response.status, errText);
+          throw new Error(`Analysis failed: ${response.status}`);
         }
 
         const data = await response.json();
@@ -146,7 +158,9 @@ export default function ScannerPage() {
         setTimeout(() => {
           speak(data.result);
         }, 500);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[Analyze] Error:', msg);
         setErrorMsg('分析失败，请重试');
         setAppState('error');
         speak('分析失败，请重试');
