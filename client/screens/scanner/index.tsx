@@ -10,6 +10,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 
@@ -95,15 +96,21 @@ export default function ScannerPage() {
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.5,
-        base64: true,
+        base64: false,
         skipProcessing: true,
       });
-      if (photo?.base64) {
-        // photo.base64 may already include data URI prefix (e.g. data:image/png;base64,...)
-        const frame = photo.base64.startsWith('data:')
-          ? photo.base64
-          : `data:image/jpeg;base64,${photo.base64}`;
-        framesRef.current.push(frame);
+      if (photo?.uri) {
+        // Resize image to max 1024px on longest side to reduce payload size for mobile
+        const manipulated = await manipulateAsync(
+          photo.uri,
+          [{ resize: { width: 1024 } }],
+          { compress: 0.6, format: SaveFormat.JPEG, base64: true }
+        );
+        if (manipulated?.base64) {
+          const frame = `data:image/jpeg;base64,${manipulated.base64}`;
+          framesRef.current.push(frame);
+          console.log(`Frame captured, size: ${Math.round(manipulated.base64.length / 1024)}KB`);
+        }
       }
     } catch (e) {
       console.error('Capture error:', e);
