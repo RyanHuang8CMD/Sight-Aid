@@ -26,8 +26,8 @@ interface AnalysisResult {
   timestamp: number;
 }
 
-const FRAME_COUNT = 6;
-const RECORDING_DURATION = 12;
+const FRAME_COUNT = 8;
+const RECORDING_DURATION = 16;
 
 const COMMON_TARGETS = ['洗手间/厕所', '出口', '电梯', '楼梯', '收银台'];
 
@@ -94,9 +94,9 @@ export default function ScannerPage() {
     isCapturingRef.current = true;
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
+        quality: 0.9,
         base64: true,
-        skipProcessing: true,
+        skipProcessing: false,
       });
       if (photo?.base64) {
         // photo.base64 may already include data URI prefix (e.g. data:image/png;base64,...)
