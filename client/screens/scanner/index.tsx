@@ -56,7 +56,7 @@ export default function ScannerPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [target, setTarget] = useState('洗手间/厕所');
-
+  const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
 
@@ -434,45 +434,59 @@ export default function ScannerPage() {
             activeOpacity={0.9}
             onPress={handleStart}
           >
-            {/* Voice target input */}
-            <View style={styles.voiceTargetContainer}>
-              <Text style={styles.voiceTargetLabel}>告诉我要找什么：</Text>
-              <View style={styles.voiceTargetRow}>
-                <View style={styles.voiceTargetText}>
-                  <FontAwesome6 name="location-dot" size={16} color={COLORS.amberLight} />
-                  <Text style={styles.voiceTargetValue} numberOfLines={1}>{target}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.micButton, isRecording && styles.micButtonActive]}
-                  onPress={toggleRecording}
-                  activeOpacity={0.7}
-                  accessibilityLabel={isRecording ? '停止录音' : '语音输入目标'}
+            {/* Target selector */}
+            <View style={styles.targetPickerContainer}>
+              <TouchableOpacity
+                style={styles.targetButton}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  setShowTargetPicker(!showTargetPicker);
+                }}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white60} />
+                <Text style={styles.targetButtonText}>寻找: {target}</Text>
+              </TouchableOpacity>
+
+              {showTargetPicker && (
+                <Modal
+                  visible={showTargetPicker}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowTargetPicker(false)}
                 >
-                  <FontAwesome6
-                    name={isRecording ? 'microphone' : 'microphone-lines-solid'}
-                    size={22}
-                    color={isRecording ? COLORS.red : COLORS.white}
-                  />
-                </TouchableOpacity>
-              </View>
-              {isRecording && (
-                <View style={styles.recordingIndicator}>
-                  <View style={styles.recordingDot} />
-                  <Text style={styles.recordingText}>正在听... 说完后再点一下</Text>
-                </View>
-              )}
-              {/* Quick targets */}
-              <View style={styles.quickTargets}>
-                {COMMON_TARGETS.slice(0, 4).map((t) => (
                   <TouchableOpacity
-                    key={t}
-                    style={[styles.quickTargetBtn, target === t && styles.quickTargetBtnActive]}
-                    onPress={() => setTarget(t)}
+                    style={styles.modalBackdrop}
+                    activeOpacity={1}
+                    onPress={() => setShowTargetPicker(false)}
                   >
-                    <Text style={[styles.quickTargetText, target === t && styles.quickTargetTextActive]}>{t}</Text>
+                    <View style={styles.targetPickerPanel}>
+                      {COMMON_TARGETS.map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[
+                            styles.targetOption,
+                            target === t && styles.targetOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTarget(t);
+                            setShowTargetPicker(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.targetOptionText,
+                              target === t && styles.targetOptionTextActive,
+                            ]}
+                          >
+                            {t}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </TouchableOpacity>
-                ))}
-              </View>
+                </Modal>
+              )}
             </View>
 
             {/* Main content */}
@@ -705,66 +719,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  voiceTargetContainer: {
+  targetPickerContainer: {
     position: 'absolute',
     top: 60,
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
     alignItems: 'center',
     zIndex: 30,
-    gap: 12,
   },
-  voiceTargetLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  voiceTargetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  voiceTargetText: {
+  targetButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
-    flex: 1,
   },
-  voiceTargetValue: {
-    fontSize: 17,
-    color: COLORS.white,
-    fontWeight: '600',
-    flex: 1,
+  targetButtonText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
   },
-  quickTargets: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  modalBackdrop: {
+    flex: 1,
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  quickTargetBtn: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  targetPickerPanel: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 12,
+    minWidth: 200,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  quickTargetBtnActive: {
-    backgroundColor: 'rgba(245,158,11,0.15)',
-    borderColor: COLORS.amberLight,
+  targetOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
   },
-  quickTargetText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+  targetOptionActive: {
+    backgroundColor: 'rgba(245,158,11,0.2)',
   },
-  quickTargetTextActive: {
+  targetOptionText: {
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  targetOptionTextActive: {
     color: COLORS.amberLight,
     fontWeight: '600',
   },
