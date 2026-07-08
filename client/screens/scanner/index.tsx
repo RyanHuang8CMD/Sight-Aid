@@ -440,7 +440,11 @@ export default function ScannerPage() {
                 style={styles.targetButton}
                 onPress={(e) => {
                   e.stopPropagation?.();
-                  setShowTargetPicker(!showTargetPicker);
+                  const next = !showTargetPicker;
+                  setShowTargetPicker(next);
+                  if (next) {
+                    try { Speech.speak(`当前目标：${target}`, { language: 'zh-CN', rate: 1.0 }); } catch { /* ignore */ }
+                  }
                 }}
                 activeOpacity={0.7}
               >
@@ -471,6 +475,7 @@ export default function ScannerPage() {
                           onPress={() => {
                             setTarget(t);
                             setShowTargetPicker(false);
+                            try { Speech.speak(t, { language: 'zh-CN', rate: 1.0 }); } catch { /* ignore */ }
                           }}
                         >
                           <Text
