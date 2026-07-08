@@ -1,24 +1,8 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { LLMClient, Config, HeaderUtils, S3Storage } from "coze-coding-dev-sdk";
+import { LLMClient } from "coze-coding-dev-sdk";
 
 const router = Router();
-
-const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: "",
-  secretKey: "",
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: "cn-beijing",
-});
-
-/**
- * Extract raw base64 string from a data URI (e.g. "data:image/jpeg;base64,abc...")
- */
-function extractBase64(dataUri: string): string {
-  const match = dataUri.match(/^data:image\/\w+;base64,(.+)$/);
-  return match ? match[1] : dataUri;
-}
 
 /**
  * POST /api/v1/analyze
@@ -27,7 +11,6 @@ function extractBase64(dataUri: string): string {
  * - target: what the user is looking for (default: "洗手间/厕所")
  */
 router.post("/", async (req: Request, res: Response) => {
-  const uploadedKeys: string[] = [];
   try {
     const { images, target } = req.body as {
       images: string[];
@@ -39,27 +22,16 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // Upload each base64 image to object storage and get HTTP URLs
-    const imageUrls: string[] = [];
-    for (let i = 0; i < images.length; i++) {
-      const base64Data = extractBase64(images[i]);
-      const buffer = Buffer.from(base64Data, "base64");
-      const key = await storage.uploadFile({
-        fileContent: buffer,
-        fileName: `sight-aid/frame_${Date.now()}_${i}.jpg`,
-        contentType: "image/jpeg",
-      });
-      uploadedKeys.push(key);
-      const url = await storage.generatePresignedUrl({
-        key,
-        expireTime: 3600,
-      });
-      imageUrls.push(url);
-    }
+    // Build image URLs - pass data URIs directly to LLM
+    const imageUrls: string[] = images.map((img) => {
+      // Ensure proper data URI format
+      if (img.startsWith("data:")) {
+        return img;
+      }
+      return `data:image/jpeg;base64,${img}`;
+    });
 
-    const customHeaders = HeaderUtils.extractForwardHeaders(req.headers as Record<string, string>);
-    const config = new Config();
-    const client = new LLMClient(config, customHeaders);
+    const client = new LLMClient();
 
     const targetDesc = target || "洗手间/厕所";
 
@@ -147,11 +119,6 @@ router.post("/", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Analysis error:", error);
     res.status(500).json({ error: "分析失败，请重试" });
-  } finally {
-    // Clean up uploaded files from storage
-    for (const key of uploadedKeys) {
-      storage.deleteFile({ fileKey: key }).catch(() => {});
-    }
   }
 });
 
