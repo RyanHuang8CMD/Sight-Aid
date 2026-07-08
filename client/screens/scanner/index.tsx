@@ -4,13 +4,12 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
   StyleSheet,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -30,6 +29,8 @@ interface AnalysisResult {
 
 const FRAME_COUNT = 6;
 const RECORDING_DURATION = 12;
+
+const COMMON_TARGETS = ['洗手间/厕所', '出口', '电梯', '楼梯', '收银台'];
 
 // Colors
 const COLORS = {
@@ -54,9 +55,8 @@ export default function ScannerPage() {
   const [recordingProgress, setRecordingProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
-  const [target, setTarget] = useState('');
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [target, setTarget] = useState('洗手间/厕所');
+  const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
 
@@ -66,7 +66,6 @@ export default function ScannerPage() {
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturingRef = useRef(false);
-  const voiceRecordingRef = useRef<Audio.Recording | null>(null);
 
   // Voice synthesis
   const speak = useCallback((text: string) => {
@@ -222,14 +221,6 @@ export default function ScannerPage() {
   const handleStart = useCallback(async () => {
     if (appState !== 'idle') return;
 
-    if (!target.trim()) {
-      Speech.speak('请先点击麦克风说出你要找的东西', {
-        language: 'zh-CN',
-        rate: 0.95,
-      });
-      return;
-    }
-
     let perm = cameraPermission;
     if (!perm?.granted) {
       perm = await requestCameraPermission();
@@ -299,108 +290,6 @@ export default function ScannerPage() {
     setResult(null);
     setErrorMsg('');
     setRecordingProgress(0);
-  }, []);
-
-  // Voice recording for target input
-  const handleStartVoiceRecording = useCallback(async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('需要麦克风权限才能使用语音输入');
-        setAppState('error');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      await recording.startAsync();
-
-      voiceRecordingRef.current = recording;
-      setIsRecordingVoice(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (err) {
-      console.error('Failed to start voice recording:', err);
-      setErrorMsg('语音录制启动失败');
-      setAppState('error');
-    }
-  }, []);
-
-  const handleStopVoiceRecording = useCallback(async () => {
-    const recording = voiceRecordingRef.current;
-    if (!recording) return;
-
-    try {
-      setIsRecordingVoice(false);
-      await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-
-      const uri = recording.getURI();
-      voiceRecordingRef.current = null;
-
-      if (!uri) {
-        setErrorMsg('录音文件获取失败');
-        setAppState('error');
-        return;
-      }
-
-      // Read audio file as base64
-      const base64Data = await (FileSystem as any).readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
-
-      // Send to ASR backend
-      setIsTranscribing(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/asr`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64Data }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '语音识别失败');
-      }
-
-      if (data.text) {
-        setTarget(data.text);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Speech.speak(`好的，正在寻找${data.text}`, {
-          language: 'zh-CN',
-          rate: 0.95,
-        });
-      } else {
-        setErrorMsg('未识别到语音内容，请重试');
-        setAppState('error');
-      }
-    } catch (err) {
-      console.error('Voice recognition error:', err);
-      setErrorMsg('语音识别失败，请重试');
-      setAppState('error');
-    } finally {
-      setIsTranscribing(false);
-    }
-  }, []);
-
-  // Cleanup voice recording on unmount
-  useEffect(() => {
-    return () => {
-      if (voiceRecordingRef.current) {
-        voiceRecordingRef.current.stopAndUnloadAsync().catch(() => undefined);
-      }
-    };
   }, []);
 
   // Repeat result
@@ -545,47 +434,58 @@ export default function ScannerPage() {
             activeOpacity={0.9}
             onPress={handleStart}
           >
-            {/* Voice input bar */}
-            <View style={styles.voiceInputContainer}>
-              <View style={styles.voiceInputBar}>
-                <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white40} style={{ marginLeft: 16 }} />
-                <Text style={styles.voiceInputText} numberOfLines={1}>
-                  {isTranscribing ? '识别中...' : target || '点击麦克风说出你要找的东西'}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.micButton,
-                    isRecordingVoice && styles.micButtonActive,
-                    isTranscribing && styles.micButtonDisabled,
-                  ]}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    if (isTranscribing) return;
-                    if (isRecordingVoice) {
-                      handleStopVoiceRecording();
-                    } else {
-                      handleStartVoiceRecording();
-                    }
-                  }}
-                  activeOpacity={0.7}
-                  disabled={isTranscribing}
+            {/* Target selector */}
+            <View style={styles.targetPickerContainer}>
+              <TouchableOpacity
+                style={styles.targetButton}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  setShowTargetPicker(!showTargetPicker);
+                }}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white60} />
+                <Text style={styles.targetButtonText}>寻找: {target}</Text>
+              </TouchableOpacity>
+
+              {showTargetPicker && (
+                <Modal
+                  visible={showTargetPicker}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowTargetPicker(false)}
                 >
-                  {isTranscribing ? (
-                    <ActivityIndicator size="small" color={COLORS.white} />
-                  ) : (
-                    <FontAwesome6
-                      name="microphone"
-                      size={20}
-                      color={COLORS.white}
-                    />
-                  )}
-                </TouchableOpacity>
-              </View>
-              {isRecordingVoice && (
-                <View style={styles.recordingIndicator}>
-                  <View style={styles.recordingDot} />
-                  <Text style={styles.recordingText}>正在聆听... 点击麦克风停止</Text>
-                </View>
+                  <TouchableOpacity
+                    style={styles.modalBackdrop}
+                    activeOpacity={1}
+                    onPress={() => setShowTargetPicker(false)}
+                  >
+                    <View style={styles.targetPickerPanel}>
+                      {COMMON_TARGETS.map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[
+                            styles.targetOption,
+                            target === t && styles.targetOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTarget(t);
+                            setShowTargetPicker(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.targetOptionText,
+                              target === t && styles.targetOptionTextActive,
+                            ]}
+                          >
+                            {t}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
               )}
             </View>
 
@@ -819,48 +719,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  voiceInputContainer: {
+  targetPickerContainer: {
     position: 'absolute',
     top: 60,
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 30,
   },
-  voiceInputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 28,
-    height: 56,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    gap: 10,
-  },
-  recordingIndicator: {
+  targetButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  voiceInputText: {
-    flex: 1,
+  targetButtonText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.8)',
   },
-  micButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.amber,
+  modalBackdrop: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  micButtonActive: {
-    backgroundColor: COLORS.red,
+  targetPickerPanel: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 12,
+    minWidth: 200,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  micButtonDisabled: {
-    opacity: 0.6,
+  targetOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  targetOptionActive: {
+    backgroundColor: 'rgba(245,158,11,0.2)',
+  },
+  targetOptionText: {
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  targetOptionTextActive: {
+    color: COLORS.amberLight,
+    fontWeight: '600',
   },
   idleCard: {
     alignItems: 'center',

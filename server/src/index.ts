@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import analyzeRouter from "./routes/analyze.js";
-import asrRouter from "./routes/asr.js";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -18,7 +17,6 @@ app.get('/api/v1/health', (req, res) => {
 
 // Routes
 app.use('/api/v1/analyze', analyzeRouter);
-app.use('/api/v1/asr', asrRouter);
 
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}/`);
