@@ -57,6 +57,7 @@ export default function ScannerPage() {
   const [target, setTarget] = useState('洗手间/厕所');
   const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [cameraActive, setCameraActive] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
   const framesRef = useRef<string[]>([]);
@@ -67,7 +68,11 @@ export default function ScannerPage() {
 
   // Voice synthesis
   const speak = useCallback((text: string) => {
-    Speech.stop();
+    try {
+      Speech.stop();
+    } catch {
+      // Ignore errors when stopping speech
+    }
     Speech.speak(text, {
       language: 'zh-CN',
       rate: 0.9,
@@ -111,6 +116,8 @@ export default function ScannerPage() {
   const analyzeFrames = useCallback(
     async (frames: string[]) => {
       setAppState('processing');
+      // Release camera immediately after recording
+      setCameraActive(false);
       speak('正在分析周围环境，请稍候');
 
       try {
@@ -143,6 +150,9 @@ export default function ScannerPage() {
         setErrorMsg('分析失败，请重试');
         setAppState('error');
         speak('分析失败，请重试');
+      } finally {
+        // Free memory by clearing captured frames
+        framesRef.current = [];
       }
     },
     [speak, target]
@@ -203,6 +213,7 @@ export default function ScannerPage() {
 
     setAppState('countdown');
     setCountdown(3);
+    setCameraActive(true);
     speak('准备开始扫描环境，请持手机在胸前');
     hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -235,7 +246,11 @@ export default function ScannerPage() {
 
   // Reset to idle
   const handleReset = useCallback(() => {
-    Speech.stop();
+    try {
+      Speech.stop();
+    } catch {
+      // Ignore
+    }
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
@@ -249,6 +264,7 @@ export default function ScannerPage() {
       captureTimerRef.current = null;
     }
     framesRef.current = [];
+    setCameraActive(false);
     setAppState('idle');
     setResult(null);
     setErrorMsg('');
@@ -265,14 +281,18 @@ export default function ScannerPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      Speech.stop();
+      try {
+        Speech.stop();
+      } catch {
+        // Ignore
+      }
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
       if (captureTimerRef.current) clearInterval(captureTimerRef.current);
     };
   }, []);
 
-  const isCameraActive = appState === 'recording';
+  const isCameraActive = cameraActive && (appState === 'countdown' || appState === 'recording');
 
   return (
     <Screen
