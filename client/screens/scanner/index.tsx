@@ -10,6 +10,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -59,6 +60,8 @@ export default function ScannerPage() {
   const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [micPermission, setMicPermission] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
   const framesRef = useRef<string[]>([]);
@@ -66,6 +69,7 @@ export default function ScannerPage() {
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturingRef = useRef(false);
+  const audioRecordingRef = useRef<Audio.Recording | null>(null);
 
   // Voice synthesis
   const speak = useCallback((text: string) => {
@@ -88,6 +92,100 @@ export default function ScannerPage() {
     },
     []
   );
+
+  // Request microphone permission on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      setMicPermission(status === 'granted');
+    })();
+  }, []);
+
+  // Voice input: start recording
+  const startVoiceRecording = useCallback(async () => {
+    if (isVoiceRecording) return;
+
+    if (!micPermission) {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        speak('需要麦克风权限才能使用语音输入');
+        return;
+      }
+      setMicPermission(true);
+    }
+
+    try {
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      audioRecordingRef.current = recording;
+      setIsVoiceRecording(true);
+      hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
+      speak('请说出您要寻找的目标');
+    } catch (error) {
+      console.error('[Voice] Start recording failed:', error);
+      speak('录音启动失败');
+    }
+  }, [isVoiceRecording, micPermission, speak, hapticImpact]);
+
+  // Voice input: stop recording and recognize
+  const stopVoiceRecording = useCallback(async () => {
+    if (!audioRecordingRef.current) return;
+
+    try {
+      await audioRecordingRef.current.stopAndUnloadAsync();
+      const uri = audioRecordingRef.current.getURI();
+      audioRecordingRef.current = null;
+      setIsVoiceRecording(false);
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+      if (!uri) {
+        speak('未获取到录音');
+        return;
+      }
+
+      hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
+      speak('正在识别语音');
+
+      // Upload audio to backend for ASR
+      const formData = new FormData();
+      formData.append('audio', {
+        uri,
+        type: 'audio/m4a',
+        name: 'voice.m4a',
+      } as any);
+
+      /**
+       * 服务端文件：server/src/routes/asr.ts
+       * 接口：POST /api/v1/asr
+       * Body: FormData with 'audio' field (audio file)
+       */
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/asr`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '语音识别失败');
+      }
+
+      const recognizedText = data.text?.trim();
+      if (recognizedText) {
+        setTarget(recognizedText);
+        speak(`已设置目标为：${recognizedText}`);
+        hapticImpact(Haptics.ImpactFeedbackStyle.Heavy);
+      } else {
+        speak('未能识别语音，请重试');
+      }
+    } catch (error) {
+      console.error('[Voice] ASR failed:', error);
+      setIsVoiceRecording(false);
+      speak('语音识别失败，请重试');
+    }
+  }, [speak, hapticImpact]);
 
   // Capture a single frame
   const captureFrame = useCallback(async () => {
@@ -436,17 +534,44 @@ export default function ScannerPage() {
           >
             {/* Target selector */}
             <View style={styles.targetPickerContainer}>
-              <TouchableOpacity
-                style={styles.targetButton}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  setShowTargetPicker(!showTargetPicker);
-                }}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white60} />
-                <Text style={styles.targetButtonText}>寻找: {target}</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity
+                  style={styles.targetButton}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    setShowTargetPicker(!showTargetPicker);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white60} />
+                  <Text style={styles.targetButtonText}>寻找: {target}</Text>
+                </TouchableOpacity>
+
+                {/* Voice input button */}
+                <TouchableOpacity
+                  style={[
+                    styles.micButton,
+                    isVoiceRecording && styles.micButtonActive,
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    if (isVoiceRecording) {
+                      stopVoiceRecording();
+                    } else {
+                      startVoiceRecording();
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityLabel={isVoiceRecording ? '停止语音输入' : '语音输入目标'}
+                  accessibilityHint={isVoiceRecording ? '双击停止录音并识别' : '双击开始语音输入目标'}
+                >
+                  <FontAwesome6
+                    name={isVoiceRecording ? 'stop' : 'microphone'}
+                    size={20}
+                    color={isVoiceRecording ? COLORS.danger : COLORS.amber}
+                  />
+                </TouchableOpacity>
+              </View>
 
               {showTargetPicker && (
                 <Modal
@@ -741,6 +866,20 @@ const styles = StyleSheet.create({
   targetButtonText: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.8)',
+  },
+  micButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micButtonActive: {
+    backgroundColor: 'rgba(255,59,48,0.15)',
+    borderColor: COLORS.danger,
   },
   modalBackdrop: {
     flex: 1,
