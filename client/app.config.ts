@@ -67,12 +67,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           "microphonePermission": `原网页应用App化需要访问麦克风以录制视频声音。`,
           "recordAudioAndroid": true
         }
-      ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": `允许应用访问麦克风以进行语音输入。`
-        }
       ]
     ],
     "experiments": {
