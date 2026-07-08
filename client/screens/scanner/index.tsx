@@ -150,11 +150,20 @@ export default function ScannerPage() {
 
       // Upload audio to backend for ASR
       const formData = new FormData();
-      formData.append('audio', {
-        uri,
-        type: 'audio/m4a',
-        name: 'voice.m4a',
-      } as any);
+
+      if (Platform.OS === 'web') {
+        // On web, uri is a blob: URL - need to fetch and convert to File
+        const audioResponse = await fetch(uri);
+        const audioBlob = await audioResponse.blob();
+        formData.append('audio', audioBlob, 'voice.m4a');
+      } else {
+        // On mobile, use the file URI directly
+        formData.append('audio', {
+          uri,
+          type: 'audio/m4a',
+          name: 'voice.m4a',
+        } as any);
+      }
 
       /**
        * 服务端文件：server/src/routes/asr.ts
