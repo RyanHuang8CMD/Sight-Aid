@@ -59,9 +59,11 @@ export default function ScannerPage() {
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
   const framesRef = useRef<string[]>([]);
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -299,6 +301,75 @@ export default function ScannerPage() {
     }
   }, [result, speak]);
 
+  // Toggle voice recording for target input
+  const toggleRecording = useCallback(async () => {
+    if (isRecording) {
+      // Stop recording
+      try {
+        if (recordingRef.current) {
+          const stoppedRecording = await recordingRef.current.stopAndUnloadAsync();
+          const uri = stoppedRecording.getURI();
+          recordingRef.current = null;
+          setIsRecording(false);
+
+          if (!uri) {
+            setErrorMsg('录音失败，请重试');
+            return;
+          }
+
+          // Send audio to backend ASR
+          const formData = new FormData();
+          formData.append('audio', {
+            uri,
+            type: 'audio/m4a',
+            name: 'recording.m4a',
+          } as unknown as Blob);
+
+          const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/asr`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          const data = await response.json();
+          if (response.ok && data.text) {
+            setTarget(data.text);
+            speak(`已识别：${data.text}`);
+          } else {
+            setErrorMsg(data.error || '语音识别失败');
+          }
+        }
+      } catch (err) {
+        console.error('Stop recording error:', err);
+        setErrorMsg('语音识别失败，请重试');
+        setIsRecording(false);
+      }
+    } else {
+      // Start recording
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('需要麦克风权限才能使用语音输入');
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const { recording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        recordingRef.current = recording;
+        setIsRecording(true);
+        speak('请说出您要去的地方');
+      } catch (err) {
+        console.error('Start recording error:', err);
+        setErrorMsg('录音启动失败');
+      }
+    }
+  }, [isRecording, speak]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -449,7 +520,7 @@ export default function ScannerPage() {
                   accessibilityLabel={isRecording ? '停止录音' : '语音输入目标'}
                 >
                   <FontAwesome6
-                    name={isRecording ? 'microphone' : 'microphone-lines-solid'}
+                    name={isRecording ? 'microphone' : 'microphone-lines'}
                     size={22}
                     color={isRecording ? COLORS.red : COLORS.white}
                   />
