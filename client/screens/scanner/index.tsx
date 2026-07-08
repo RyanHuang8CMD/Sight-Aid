@@ -94,7 +94,11 @@ export default function ScannerPage() {
         skipProcessing: true,
       });
       if (photo?.base64) {
-        framesRef.current.push(`data:image/jpeg;base64,${photo.base64}`);
+        // photo.base64 may already include data URI prefix (e.g. data:image/png;base64,...)
+        const frame = photo.base64.startsWith('data:')
+          ? photo.base64
+          : `data:image/jpeg;base64,${photo.base64}`;
+        framesRef.current.push(frame);
       }
     } catch (e) {
       console.error('Capture error:', e);
