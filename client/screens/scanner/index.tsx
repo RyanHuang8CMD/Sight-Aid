@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Modal,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
