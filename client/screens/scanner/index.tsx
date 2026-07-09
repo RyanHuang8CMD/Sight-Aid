@@ -397,7 +397,7 @@ export default function ScannerPage() {
 
   return (
     <Screen
-      safeAreaEdges={['left', 'right']}
+      safeAreaEdges={['top', 'bottom', 'left', 'right']}
       statusBarStyle="light"
     >
       <View style={styles.container}>
@@ -547,11 +547,11 @@ export default function ScannerPage() {
               >
                 <FontAwesome6
                   name={isListening ? 'microphone' : 'microphone-lines'}
-                  size={16}
+                  size={18}
                   color={isListening ? COLORS.accentOrange : COLORS.white60}
                 />
                 <Text style={[styles.micButtonText, isListening && styles.micButtonTextActive]}>
-                  {isListening ? '正在听...' : '语音'}
+                  {isListening ? '正在听...' : '语音指令'}
                 </Text>
               </TouchableOpacity>
 
@@ -849,10 +849,10 @@ const styles = StyleSheet.create({
   micButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accentOrange,
   },
   micButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.white60,
     fontWeight: '500',
   },
