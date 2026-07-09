@@ -72,6 +72,20 @@ export default function ScannerPage() {
   const recognitionRef = useRef<any>(null);
 
   // Voice recognition - "Hi SightAid" style voice command
+  // Voice synthesis
+  const speak = useCallback((text: string) => {
+    try {
+      Speech.stop();
+    } catch {
+      // Ignore errors when stopping speech
+    }
+    Speech.speak(text, {
+      language: 'zh-CN',
+      rate: 0.9,
+      pitch: 1.0,
+    });
+  }, []);
+
   const startListening = useCallback(() => {
     if (Platform.OS !== 'web') {
       Alert.alert('提示', '语音识别功能目前仅在网页端可用');
@@ -147,20 +161,6 @@ export default function ScannerPage() {
       recognitionRef.current = null;
     }
     setIsListening(false);
-  }, []);
-
-  // Voice synthesis
-  const speak = useCallback((text: string) => {
-    try {
-      Speech.stop();
-    } catch {
-      // Ignore errors when stopping speech
-    }
-    Speech.speak(text, {
-      language: 'zh-CN',
-      rate: 0.9,
-      pitch: 1.0,
-    });
   }, []);
 
   // Haptic feedback
