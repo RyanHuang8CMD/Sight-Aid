@@ -516,11 +516,35 @@ export default function ScannerPage() {
 
         {/* ===== IDLE STATE ===== */}
         {appState === 'idle' && (
-          <TouchableOpacity
-            style={styles.idleContainer}
-            activeOpacity={0.9}
-            onPress={handleStart}
-          >
+          <>
+            {/* Voice command button - above camera preview */}
+            <TouchableOpacity
+              style={[styles.micButtonLarge, isListening && styles.micButtonLargeActive]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                if (isListening) {
+                  stopListening();
+                } else {
+                  startListening();
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <FontAwesome6
+                name={isListening ? 'microphone' : 'microphone-lines'}
+                size={22}
+                color={isListening ? COLORS.accentOrange : COLORS.white80}
+              />
+              <Text style={[styles.micButtonLargeText, isListening && styles.micButtonLargeTextActive]}>
+                {isListening ? '正在聆听... 请说出您想去的地方' : '点击语音说出您想去的地方'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.idleContainer}
+              activeOpacity={0.9}
+              onPress={handleStart}
+            >
             {/* Target selector */}
             <View style={styles.targetPickerContainer}>
               <TouchableOpacity
@@ -537,29 +561,6 @@ export default function ScannerPage() {
               >
                 <FontAwesome6 name="magnifying-glass" size={16} color={COLORS.white60} />
                 <Text style={styles.targetButtonText}>寻找: {target}</Text>
-              </TouchableOpacity>
-
-              {/* Voice command button */}
-              <TouchableOpacity
-                style={[styles.micButton, isListening && styles.micButtonActive]}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  if (isListening) {
-                    stopListening();
-                  } else {
-                    startListening();
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <FontAwesome6
-                  name={isListening ? 'microphone' : 'microphone-lines'}
-                  size={18}
-                  color={isListening ? COLORS.accentOrange : COLORS.white60}
-                />
-                <Text style={[styles.micButtonText, isListening && styles.micButtonTextActive]}>
-                  {isListening ? '正在听...' : '语音指令'}
-                </Text>
               </TouchableOpacity>
 
               {showTargetPicker && (
@@ -627,6 +628,7 @@ export default function ScannerPage() {
               </Text>
             </View>
           </TouchableOpacity>
+          </>
         )}
       </View>
     </Screen>
@@ -865,6 +867,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
   },
   micButtonActive: {
+    backgroundColor: 'rgba(255,107,59,0.15)',
+    borderColor: COLORS.accentOrange,
+  },
+  micButtonLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center',
+    width: '70%',
+  },
+  micButtonLargeActive: {
     backgroundColor: 'rgba(255,107,59,0.15)',
     borderColor: COLORS.accentOrange,
   },
