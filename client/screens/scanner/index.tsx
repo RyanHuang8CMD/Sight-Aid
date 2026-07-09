@@ -517,29 +517,6 @@ export default function ScannerPage() {
         {/* ===== IDLE STATE ===== */}
         {appState === 'idle' && (
           <>
-            {/* Voice command button - above camera preview */}
-            <TouchableOpacity
-              style={[styles.micButtonLarge, isListening && styles.micButtonLargeActive]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                if (isListening) {
-                  stopListening();
-                } else {
-                  startListening();
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <FontAwesome6
-                name={isListening ? 'microphone' : 'microphone-lines'}
-                size={22}
-                color={isListening ? COLORS.accentOrange : COLORS.white80}
-              />
-              <Text style={[styles.micButtonLargeText, isListening && styles.micButtonLargeTextActive]}>
-                {isListening ? '正在聆听... 请说出您想去的地方' : '点击语音说出您想去的地方'}
-              </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.idleContainer}
               activeOpacity={0.9}
@@ -622,6 +599,30 @@ export default function ScannerPage() {
             </View>
 
             {/* Bottom hint */}
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <TouchableOpacity
+                style={[styles.micButtonLarge, isListening && styles.micButtonLargeActive]}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    startListening();
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6
+                  name={isListening ? 'microphone' : 'microphone-lines'}
+                  size={22}
+                  color={isListening ? COLORS.accentOrange : COLORS.white80}
+                />
+                <Text style={[styles.micButtonLargeText, isListening && styles.micButtonLargeTextActive]}>
+                  {isListening ? '正在聆听... 请说出您想去的地方' : '点击语音说出您想去的地方'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.bottomHint}>
               <Text style={styles.bottomHintText}>
                 打开摄像头，原地转一圈，AI 帮你找到目标
