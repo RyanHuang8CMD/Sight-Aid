@@ -53,11 +53,11 @@ export default function NavigatorScreen() {
   }, []);
 
   useEffect(() => {
-    if (!permission) return;
-    if (!permission.granted) {
+    if (permission && !permission.granted) {
       requestPermission();
     }
-  }, [permission, requestPermission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const analyzeFrame = useCallback(async (base64: string) => {
     if (isProcessingRef.current || !mountedRef.current) return;
