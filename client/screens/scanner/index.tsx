@@ -39,7 +39,9 @@ const COLORS = {
   bg: '#0A0E1A',
   amber: '#F59E0B',
   amberLight: '#FCD34D',
+  accentOrange: '#FF6B3B',
   white: '#FFFFFF',
+  white80: 'rgba(255,255,255,0.8)',
   white60: 'rgba(255,255,255,0.6)',
   white40: 'rgba(255,255,255,0.4)',
   white20: 'rgba(255,255,255,0.2)',
@@ -897,6 +899,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   micButtonTextActive: {
+    color: COLORS.accentOrange,
+  },
+  micButtonLargeText: {
+    fontSize: 16,
+    color: COLORS.white80,
+    fontWeight: '600',
+  },
+  micButtonLargeTextActive: {
     color: COLORS.accentOrange,
   },
   targetButtonText: {

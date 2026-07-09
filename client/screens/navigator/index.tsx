@@ -166,14 +166,17 @@ export default function NavigatorScreen() {
     try { Speech.stop(); } catch {}
   }, []);
 
-  const goBack = useCallback(() => {
-    stopNavigation();
-    router.back();
-  }, [stopNavigation, router]);
-
   // Voice command to trigger 360° scan mode
   const startVoiceCommand = useCallback(() => {
     if (typeof window === 'undefined') return;
+
+    // Stop navigation announcements to avoid voice overlap
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    try { Speech.stop(); } catch {}
+
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       try { Speech.speak('当前浏览器不支持语音识别'); } catch {}
@@ -197,19 +200,33 @@ export default function NavigatorScreen() {
         stopNavigation();
         router.push('/scanner');
       } else {
-        try { Speech.speak('未识别到指令，请说搜索目标'); } catch {}
+        try { Speech.speak('未识别，请再试一次'); } catch {}
+        // Resume navigation if it was running
+        if (navState === 'navigating') {
+          setTimeout(() => {
+            captureAndAnalyze();
+            intervalRef.current = setInterval(captureAndAnalyze, CAPTURE_INTERVAL);
+          }, 2000);
+        }
       }
     };
 
     recognition.onerror = () => {
       try { Speech.speak('语音识别失败'); } catch {}
+      // Resume navigation if it was running
+      if (navState === 'navigating') {
+        setTimeout(() => {
+          captureAndAnalyze();
+          intervalRef.current = setInterval(captureAndAnalyze, CAPTURE_INTERVAL);
+        }, 2000);
+      }
     };
 
     try {
       recognition.start();
-      try { Speech.speak('请说出指令'); } catch {}
+      try { Speech.speak('请说话'); } catch {}
     } catch {}
-  }, [stopNavigation, router]);
+  }, [stopNavigation, router, navState, captureAndAnalyze]);
 
   return (
     <Screen style={styles.container} safeAreaEdges={['top', 'bottom', 'left', 'right']}>
@@ -225,11 +242,8 @@ export default function NavigatorScreen() {
       {/* Dark overlay for readability */}
       <View style={styles.overlay} />
 
-      {/* Top bar - only back button */}
+      {/* Top bar - status indicator */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <FontAwesome6 name="arrow-left" size={20} color="#fff" />
-        </TouchableOpacity>
         <View style={styles.statusDot}>
           {navState === 'navigating' && (
             <View style={[styles.dot, isProcessing ? styles.dotProcessing : styles.dotActive]} />
@@ -261,7 +275,7 @@ export default function NavigatorScreen() {
         {/* Large voice command button */}
         <TouchableOpacity style={styles.largeMicButton} onPress={startVoiceCommand}>
           <FontAwesome6 name="microphone" size={26} color="#fff" />
-          <Text style={styles.largeMicButtonText}>说出&ldquo;搜索目标&rdquo;</Text>
+          <Text style={styles.largeMicButtonText}>语音搜索目标</Text>
         </TouchableOpacity>
 
         {navState === 'navigating' && (
