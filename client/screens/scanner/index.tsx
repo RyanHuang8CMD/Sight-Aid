@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   Modal,
   StyleSheet,
+  Platform,
+  Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
@@ -59,6 +61,7 @@ export default function ScannerPage() {
   const [showTargetPicker, setShowTargetPicker] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
   const framesRef = useRef<string[]>([]);
@@ -66,6 +69,85 @@ export default function ScannerPage() {
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const captureTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturingRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Voice recognition - "Hi SightAid" style voice command
+  const startListening = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('提示', '语音识别功能目前仅在网页端可用');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      Alert.alert('提示', '当前浏览器不支持语音识别，请使用 Chrome 浏览器');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      speak('请说出目标');
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      setIsListening(false);
+
+      // Match spoken text to targets
+      const targetMap: Record<string, string> = {
+        '洗手间': '洗手间/厕所',
+        '厕所': '洗手间/厕所',
+        '卫生间': '洗手间/厕所',
+        '出口': '出口',
+        '安全出口': '出口',
+        '电梯': '电梯',
+        '楼梯': '楼梯',
+        '扶梯': '楼梯',
+        '收银台': '收银台',
+        '结账': '收银台',
+      };
+
+      let matchedTarget: string | null = null;
+      for (const [keyword, targetValue] of Object.entries(targetMap)) {
+        if (transcript.includes(keyword)) {
+          matchedTarget = targetValue;
+          break;
+        }
+      }
+
+      if (matchedTarget) {
+        setTarget(matchedTarget);
+        speak(`已选择${matchedTarget}`);
+      } else {
+        speak(`未识别到目标，请重试`);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      speak('语音识别失败，请重试');
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [speak]);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
 
   // Voice synthesis
   const speak = useCallback((text: string) => {
@@ -452,6 +534,29 @@ export default function ScannerPage() {
                 <Text style={styles.targetButtonText}>寻找: {target}</Text>
               </TouchableOpacity>
 
+              {/* Voice command button */}
+              <TouchableOpacity
+                style={[styles.micButton, isListening && styles.micButtonActive]}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    startListening();
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <FontAwesome6
+                  name={isListening ? 'microphone' : 'microphone-lines'}
+                  size={16}
+                  color={isListening ? COLORS.accentOrange : COLORS.white60}
+                />
+                <Text style={[styles.micButtonText, isListening && styles.micButtonTextActive]}>
+                  {isListening ? '正在听...' : '语音'}
+                </Text>
+              </TouchableOpacity>
+
               {showTargetPicker && (
                 <Modal
                   visible={showTargetPicker}
@@ -742,6 +847,29 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+  },
+  micButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  micButtonActive: {
+    backgroundColor: 'rgba(255,107,59,0.15)',
+    borderColor: COLORS.accentOrange,
+  },
+  micButtonText: {
+    fontSize: 14,
+    color: COLORS.white60,
+    fontWeight: '500',
+  },
+  micButtonTextActive: {
+    color: COLORS.accentOrange,
   },
   targetButtonText: {
     fontSize: 16,
