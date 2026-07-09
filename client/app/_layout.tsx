@@ -23,6 +23,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ title: "" }} />
+        <Stack.Screen name="navigator" options={{ title: "" }} />
+        <Stack.Screen name="scanner" options={{ title: "" }} />
       </Stack>
       <Toast />
     </Provider>
