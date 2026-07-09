@@ -16,15 +16,9 @@ import { Screen } from '@/components/Screen';
 import { FontAwesome6 } from '@expo/vector-icons';
 
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
-const CAPTURE_INTERVAL = 3000; // Capture every 3 seconds
+const CAPTURE_INTERVAL = 3000;
 
-type NavState = 'idle' | 'navigating' | 'paused';
-
-interface Obstacle {
-  direction: string;
-  description: string;
-  timestamp: number;
-}
+type NavState = 'idle' | 'navigating';
 
 export default function NavigatorScreen() {
   const router = useSafeRouter();
@@ -90,12 +84,10 @@ export default function NavigatorScreen() {
         setCurrentAdvice(advice);
         setObstacleCount(prev => prev + 1);
 
-        // Only speak if the advice is different from the last one
         if (advice !== lastSpokeRef.current && advice !== '安全，继续前行。') {
           lastSpokeRef.current = advice;
           speak(advice);
         } else if (advice === '安全，继续前行。') {
-          // Only announce "safe" every 5th time to avoid repetition
           if (obstacleCount % 5 === 0) {
             speak('前方安全，继续前行。');
           }
@@ -127,7 +119,6 @@ export default function NavigatorScreen() {
         base64Data = base64Data.split(',')[1];
       }
 
-      // Resize to reduce payload
       const manipResult = await ImageManipulator.manipulateAsync(
         `data:image/jpeg;base64,${base64Data}`,
         [{ resize: { width: 640 } }],
@@ -148,7 +139,6 @@ export default function NavigatorScreen() {
     setCurrentAdvice('正在启动导航...');
     speak('实时导航已启动，请注意语音提示。');
 
-    // Start capturing immediately, then every 3 seconds
     setTimeout(() => {
       captureAndAnalyze();
       intervalRef.current = setInterval(captureAndAnalyze, CAPTURE_INTERVAL);
@@ -166,71 +156,16 @@ export default function NavigatorScreen() {
     try { Speech.stop(); } catch {}
   }, []);
 
-  // Voice command to trigger 360° scan mode
-  const startVoiceCommand = useCallback(() => {
-    if (typeof window === 'undefined') return;
-
-    // Stop navigation announcements to avoid voice overlap
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  const goToSearchMode = useCallback(() => {
+    if (navState === 'navigating') {
+      stopNavigation();
     }
-    try { Speech.stop(); } catch {}
-
-    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognitionAPI) {
-      try { Speech.speak('当前浏览器不支持语音识别'); } catch {}
-      return;
-    }
-
-    const recognition = new SpeechRecognitionAPI();
-    recognition.lang = 'zh-CN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 3;
-
-    recognition.onresult = (event: any) => {
-      const results = [];
-      for (let i = 0; i < event.results[0].length; i++) {
-        results.push(event.results[0][i].transcript);
-      }
-      const fullText = results.join(' ');
-
-      if (fullText.includes('搜索') || fullText.includes('找') || fullText.includes('目标') || fullText.includes('扫描') || fullText.includes('转圈')) {
-        try { Speech.speak('正在进入搜索模式'); } catch {}
-        stopNavigation();
-        router.push('/scanner');
-      } else {
-        try { Speech.speak('未识别，请再试一次'); } catch {}
-        // Resume navigation if it was running
-        if (navState === 'navigating') {
-          setTimeout(() => {
-            captureAndAnalyze();
-            intervalRef.current = setInterval(captureAndAnalyze, CAPTURE_INTERVAL);
-          }, 2000);
-        }
-      }
-    };
-
-    recognition.onerror = () => {
-      try { Speech.speak('语音识别失败'); } catch {}
-      // Resume navigation if it was running
-      if (navState === 'navigating') {
-        setTimeout(() => {
-          captureAndAnalyze();
-          intervalRef.current = setInterval(captureAndAnalyze, CAPTURE_INTERVAL);
-        }, 2000);
-      }
-    };
-
-    try {
-      recognition.start();
-      try { Speech.speak('请说话'); } catch {}
-    } catch {}
-  }, [stopNavigation, router, navState, captureAndAnalyze]);
+    speak('正在进入搜索模式');
+    router.push('/scanner');
+  }, [navState, stopNavigation, speak, router]);
 
   return (
     <Screen style={styles.container} safeAreaEdges={['top', 'bottom', 'left', 'right']}>
-      {/* Camera preview - always visible */}
       {permission?.granted && (
         <CameraView
           ref={cameraRef}
@@ -239,14 +174,32 @@ export default function NavigatorScreen() {
         />
       )}
 
-      {/* Dark overlay for readability */}
       <View style={styles.overlay} />
 
-      {/* Top bar - status indicator */}
+      {/* Top status bar */}
       <View style={styles.topBar}>
-        <View style={styles.statusDot}>
+        <View style={styles.topBarContent}>
+          <View style={styles.statusIndicator}>
+            {navState === 'navigating' && (
+              <>
+                <View style={[styles.dot, isProcessing ? styles.dotProcessing : styles.dotActive]} />
+                <Text style={styles.statusText}>导航中</Text>
+              </>
+            )}
+            {navState === 'idle' && (
+              <>
+                <View style={styles.dotIdle} />
+                <Text style={styles.statusTextIdle}>待命</Text>
+              </>
+            )}
+          </View>
           {navState === 'navigating' && (
-            <View style={[styles.dot, isProcessing ? styles.dotProcessing : styles.dotActive]} />
+            <View style={styles.statsBadge}>
+              <Text style={styles.statsText}>识别 {obstacleCount} 次</Text>
+              {isProcessing && (
+                <ActivityIndicator size="small" color="#F97316" />
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -260,34 +213,24 @@ export default function NavigatorScreen() {
 
       {/* Bottom controls */}
       <View style={styles.bottomBar}>
+        {/* Navigation toggle button */}
         {navState === 'idle' ? (
           <TouchableOpacity style={styles.startButton} onPress={startNavigation}>
-            <FontAwesome6 name="location-arrow" size={28} color="#fff" />
+            <FontAwesome6 name="location-arrow" size={26} color="#fff" />
             <Text style={styles.startButtonText}>开始导航</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.stopButton} onPress={stopNavigation}>
-            <FontAwesome6 name="stop" size={28} color="#fff" />
+            <FontAwesome6 name="stop" size={26} color="#fff" />
             <Text style={styles.stopButtonText}>停止导航</Text>
           </TouchableOpacity>
         )}
 
-        {/* Large voice command button */}
-        <TouchableOpacity style={styles.largeMicButton} onPress={startVoiceCommand}>
-          <FontAwesome6 name="microphone" size={26} color="#fff" />
-          <Text style={styles.largeMicButtonText}>语音搜索目标</Text>
+        {/* Search mode button - direct toggle */}
+        <TouchableOpacity style={styles.searchButton} onPress={goToSearchMode}>
+          <FontAwesome6 name="search" size={22} color="#F97316" />
+          <Text style={styles.searchButtonText}>搜索目标</Text>
         </TouchableOpacity>
-
-        {navState === 'navigating' && (
-          <View style={styles.statsBar}>
-            <Text style={styles.statsText}>
-              已识别 {obstacleCount} 次
-            </Text>
-            {isProcessing && (
-              <ActivityIndicator size="small" color="#F97316" />
-            )}
-          </View>
-        )}
       </View>
 
       {/* Permission request */}
@@ -316,59 +259,60 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'web' ? 20 : 50,
     paddingBottom: 12,
     zIndex: 10,
   },
-  voiceCommandButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(249,115,22,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  largeMicButton: {
+  topBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 22,
-    paddingHorizontal: 32,
-    borderRadius: 20,
-    backgroundColor: 'rgba(249,115,22,0.3)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(249,115,22,0.5)',
-    marginTop: 16,
+    justifyContent: 'space-between',
   },
-  largeMicButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  topTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
+  statusText: {
+    color: '#22c55e',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  statusDot: {
-    width: 44,
-    alignItems: 'flex-end',
+  statusTextIdle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    fontWeight: '600',
   },
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotIdle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   dotActive: {
     backgroundColor: '#22c55e',
   },
   dotProcessing: {
     backgroundColor: '#F97316',
+  },
+  statsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statsText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
   },
   adviceContainer: {
     position: 'absolute',
@@ -432,15 +376,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  statsBar: {
+  searchButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    borderRadius: 50,
+    backgroundColor: 'rgba(249,115,22,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(249,115,22,0.4)',
     marginTop: 16,
   },
-  statsText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
+  searchButtonText: {
+    color: '#F97316',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   permissionContainer: {
     position: 'absolute',
