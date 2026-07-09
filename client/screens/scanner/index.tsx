@@ -7,7 +7,6 @@ import {
   Modal,
   StyleSheet,
   Platform,
-  Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
@@ -87,14 +86,13 @@ export default function ScannerPage() {
   }, []);
 
   const startListening = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Alert.alert('提示', '语音识别功能目前仅在网页端可用');
+    if (typeof window === 'undefined') {
+      speak('语音识别功能需要在浏览器环境中使用');
       return;
     }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      Alert.alert('提示', '当前浏览器不支持语音识别，请使用 Chrome 浏览器');
+      speak('当前浏览器不支持语音识别，请使用 Chrome 浏览器');
       return;
     }
 
