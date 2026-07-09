@@ -171,6 +171,46 @@ export default function NavigatorScreen() {
     router.back();
   }, [stopNavigation, router]);
 
+  // Voice command to trigger 360° scan mode
+  const startVoiceCommand = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      try { Speech.speak('当前浏览器不支持语音识别'); } catch {}
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'zh-CN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
+
+    recognition.onresult = (event: any) => {
+      const results = [];
+      for (let i = 0; i < event.results[0].length; i++) {
+        results.push(event.results[0][i].transcript);
+      }
+      const fullText = results.join(' ');
+
+      if (fullText.includes('搜索') || fullText.includes('找') || fullText.includes('目标') || fullText.includes('扫描') || fullText.includes('转圈')) {
+        try { Speech.speak('正在进入搜索模式'); } catch {}
+        stopNavigation();
+        router.push('/scanner');
+      } else {
+        try { Speech.speak('未识别到指令，请说搜索目标'); } catch {}
+      }
+    };
+
+    recognition.onerror = () => {
+      try { Speech.speak('语音识别失败'); } catch {}
+    };
+
+    try {
+      recognition.start();
+      try { Speech.speak('请说出指令'); } catch {}
+    } catch {}
+  }, [stopNavigation, router]);
+
   return (
     <Screen style={styles.container} safeAreaEdges={['top', 'bottom', 'left', 'right']}>
       {/* Camera preview - always visible */}
@@ -196,6 +236,9 @@ export default function NavigatorScreen() {
             <View style={[styles.dot, isProcessing ? styles.dotProcessing : styles.dotActive]} />
           )}
         </View>
+        <TouchableOpacity style={styles.voiceCommandButton} onPress={startVoiceCommand}>
+          <FontAwesome6 name="microphone" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Center advice display */}
@@ -270,6 +313,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceCommandButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(249,115,22,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
