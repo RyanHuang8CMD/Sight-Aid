@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
+import { useSafeRouter } from '@/hooks/useSafeRouter';
 
 type AppState =
   | 'idle'
