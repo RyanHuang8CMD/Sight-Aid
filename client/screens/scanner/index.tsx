@@ -268,8 +268,10 @@ export default function ScannerPage() {
   // ===== Step 1: Auto-start voice recognition on mount =====
   useEffect(() => {
     const autoStart = async () => {
-      // Brief delay for page transition to settle
-      await new Promise(r => setTimeout(r, 800));
+      // 先彻底杀掉可能残留的 TTS（从导航页带过来的）
+      try { Speech.stop(); } catch {}
+      // 等久一点，确保导航页的 TTS 引擎完全停止
+      await new Promise(r => setTimeout(r, 1500));
       if (!mountedRef.current) return;
 
       // Check if voice recognition is available

@@ -157,12 +157,18 @@ export default function NavigatorScreen() {
   }, []);
 
   const goToSearchMode = useCallback(() => {
-    if (navState === 'navigating') {
-      stopNavigation();
+    // 彻底停掉导航的一切：定时器、TTS、状态
+    setNavState('idle');
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-    speak('正在进入搜索模式');
+    setCurrentAdvice('');
+    setObstacleCount(0);
+    try { Speech.stop(); } catch {}
+    // 不说话，直接跳转，避免 TTS 残留被搜索页录到
     router.push('/scanner');
-  }, [navState, stopNavigation, speak, router]);
+  }, [navState, router]);
 
   return (
     <Screen style={styles.container} safeAreaEdges={['top', 'bottom', 'left', 'right']}>
