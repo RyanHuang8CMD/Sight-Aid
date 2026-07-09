@@ -103,7 +103,7 @@ export default function ScannerPage() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      speak('请说出目标');
+      speak('请说出您想去的地方');
     };
 
     recognition.onresult = (event: any) => {
@@ -136,7 +136,14 @@ export default function ScannerPage() {
         setTarget(matchedTarget);
         speak(`已选择${matchedTarget}`);
       } else {
-        speak(`未识别到目标，请重试`);
+        // 未匹配预设目标，使用用户说的内容作为自定义目标
+        const customTarget = transcript.trim();
+        if (customTarget.length > 0) {
+          setTarget(customTarget);
+          speak(`已选择${customTarget}`);
+        } else {
+          speak(`未识别到内容，请重试`);
+        }
       }
     };
 
