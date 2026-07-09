@@ -144,11 +144,13 @@ export default function ScannerPage() {
         await waitForSpeech(''); // small gap
         speak(data.result);
 
-        // Auto go back after result spoken + buffer
-        const autoBackMs = TTS_BASE_MS + data.result.length * TTS_CHAR_MS + 3000;
+        // Auto go back after result fully spoken + generous buffer
+        // Chinese TTS at rate 0.9: ~4 chars/sec, add 5s buffer after speech ends
+        const resultText = data.result || '';
+        const estimatedSpeechSec = resultText.length / 4 + 5;
         autoBackTimerRef.current = setTimeout(() => {
           if (mountedRef.current) router.back();
-        }, autoBackMs);
+        }, estimatedSpeechSec * 1000);
       } catch (err) {
         if (!mountedRef.current) return;
         const msg = err instanceof Error ? err.message : 'Unknown error';
