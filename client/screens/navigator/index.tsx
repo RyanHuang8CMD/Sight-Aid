@@ -225,20 +225,16 @@ export default function NavigatorScreen() {
       {/* Dark overlay for readability */}
       <View style={styles.overlay} />
 
-      {/* Top bar */}
+      {/* Top bar - only back button */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <FontAwesome6 name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>实时导航</Text>
         <View style={styles.statusDot}>
           {navState === 'navigating' && (
             <View style={[styles.dot, isProcessing ? styles.dotProcessing : styles.dotActive]} />
           )}
         </View>
-        <TouchableOpacity style={styles.voiceCommandButton} onPress={startVoiceCommand}>
-          <FontAwesome6 name="microphone" size={18} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       {/* Center advice display */}
@@ -261,6 +257,12 @@ export default function NavigatorScreen() {
             <Text style={styles.stopButtonText}>停止导航</Text>
           </TouchableOpacity>
         )}
+
+        {/* Large voice command button */}
+        <TouchableOpacity style={styles.largeMicButton} onPress={startVoiceCommand}>
+          <FontAwesome6 name="microphone" size={26} color="#fff" />
+          <Text style={styles.largeMicButtonText}>说出&ldquo;搜索目标&rdquo;</Text>
+        </TouchableOpacity>
 
         {navState === 'navigating' && (
           <View style={styles.statsBar}>
@@ -323,6 +325,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(249,115,22,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  largeMicButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 22,
+    paddingHorizontal: 32,
+    borderRadius: 20,
+    backgroundColor: 'rgba(249,115,22,0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(249,115,22,0.5)',
+    marginTop: 16,
+  },
+  largeMicButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   topTitle: {
     color: '#fff',
