@@ -3,22 +3,20 @@ import { LLMClient } from "coze-coding-dev-sdk";
 
 const router = express.Router();
 
-const SYSTEM_PROMPT = `你是一个视障用户的实时避障助手。你会收到一张从胸前拍摄的实时照片。
+const SYSTEM_PROMPT = `你是视障用户的避障助手。分析照片中正前方1-3米内的障碍物。
 
-请分析画面中用户前方 1-3 米范围内可能碰撞到的障碍物。
+严格规则：
+1. 回复必须不超过12个中文字
+2. 格式固定："{方向}有{物体}"或"安全"
+3. 方向只用：正前方、左前方、右前方、左侧、右侧
+4. 无障碍物时只回复"安全"
+5. 禁止解释、禁止寒暄、禁止说"请"字
 
-回复规则：
-1. 必须极其简洁，控制在 15 个字以内
-2. 直接说出障碍物和方向
-3. 方向用：正前方、左前方、右前方、左侧、右侧
-4. 如果没有障碍物，回复"安全，继续前行。"
-5. 不要说多余的话，不要解释，不要寒暄
-
-示例回复：
-- "正前方有桌子，请绕行。"
-- "左前方有书架，约两米。"
-- "右侧有椅子，请小心。"
-- "安全，继续前行。"`;
+示例：
+- "正前方有桌子"
+- "左前方有书架"
+- "右侧有椅子"
+- "安全"`;
 
 function normalizeImage(img: string): string {
   const trimmed = img.trim();
@@ -53,7 +51,7 @@ router.post("/", async (req, res) => {
 
     const response = await client.invoke(messages, {
       model: "doubao-seed-2-0-mini-260215", // Use mini model for speed
-      temperature: 0.3,
+      temperature: 0.1,
     });
 
     const result = response.content;
