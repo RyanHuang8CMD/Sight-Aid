@@ -145,6 +145,20 @@ export default function NavigatorScreen() {
     }, 2000);
   }, [captureAndAnalyze, speak]);
 
+  // 权限已授予 → 自动开始导航（延迟等摄像头初始化）
+  const startNavRef = useRef(startNavigation);
+  startNavRef.current = startNavigation;
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (permission?.granted && navState === 'idle' && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      const timer = setTimeout(() => {
+        startNavRef.current();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [permission, navState]);
+
   const stopNavigation = useCallback(() => {
     setNavState('idle');
     if (intervalRef.current) {
