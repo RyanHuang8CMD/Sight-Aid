@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
@@ -64,6 +66,8 @@ export default function ScannerPage() {
   const [isListening, setIsListening] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(true);
+  const [textInput, setTextInput] = useState('');
 
   const cameraRef = useRef<CameraView>(null);
   const framesRef = useRef<string[]>([]);
@@ -260,6 +264,15 @@ export default function ScannerPage() {
     }, 1200);
   }, [cameraPermission, requestCameraPermission, speak, startRecording]);
 
+  // ===== Text input submit (fallback when voice not supported) =====
+  const handleTextSubmit = useCallback(() => {
+    const text = textInput.trim();
+    if (!text) return;
+    setTarget(text);
+    setTextInput('');
+    beginCountdown();
+  }, [textInput, beginCountdown]);
+
   // ===== Step 1: Auto-start voice recognition on mount =====
   useEffect(() => {
     const autoStart = async () => {
@@ -271,14 +284,12 @@ export default function ScannerPage() {
 
       // Check if voice recognition is available
       if (typeof window === 'undefined') {
-        alert('语音识别不可用，请使用 Chrome 浏览器');
-        router.back();
+        setVoiceSupported(false);
         return;
       }
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognitionAPI) {
-        alert('语音识别不可用，请使用 Chrome 浏览器');
-        router.back();
+        setVoiceSupported(false);
         return;
       }
 
@@ -364,16 +375,40 @@ export default function ScannerPage() {
               <Text style={styles.voiceTitle}>搜索目标</Text>
             </View>
 
-            <View style={[styles.micCircle, isListening && styles.micCircleActive]}>
-              <FontAwesome6
-                name={isListening ? 'microphone' : 'microphone-lines'}
-                size={44}
-                color={isListening ? COLORS.accentOrange : COLORS.white}
-              />
-            </View>
-            <Text style={styles.voiceStatus}>
-              {isListening ? '正在听，请说...' : '准备中...'}
-            </Text>
+            {voiceSupported ? (
+              <>
+                <View style={[styles.micCircle, isListening && styles.micCircleActive]}>
+                  <FontAwesome6
+                    name={isListening ? 'microphone' : 'microphone-lines'}
+                    size={44}
+                    color={isListening ? COLORS.accentOrange : COLORS.white}
+                  />
+                </View>
+                <Text style={styles.voiceStatus}>
+                  {isListening ? '正在听，请说...' : '准备中...'}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.voiceStatus}>语音不可用，请手动输入</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="输入你要找的东西，如：洗手间"
+                  placeholderTextColor={COLORS.white40}
+                  value={textInput}
+                  onChangeText={setTextInput}
+                  onSubmitEditing={handleTextSubmit}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={styles.textSubmitBtn}
+                  onPress={handleTextSubmit}
+                  disabled={!textInput.trim()}
+                >
+                  <Text style={styles.textSubmitBtnText}>开始搜索</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             <TouchableOpacity style={styles.backLink} onPress={goBack}>
               <FontAwesome6 name="arrow-left" size={14} color={COLORS.white40} />
@@ -485,6 +520,29 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 50,
   },
   backLinkText: { fontSize: 14, color: COLORS.white40 },
+  textInput: {
+    width: '80%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: COLORS.white,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  textSubmitBtn: {
+    marginTop: 16,
+    backgroundColor: COLORS.accentOrange,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  textSubmitBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
 
   // Countdown
   countdownOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 20 },
