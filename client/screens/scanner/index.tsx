@@ -6,9 +6,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
@@ -65,8 +62,6 @@ export default function ScannerPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [target, setTarget] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [voiceSupported, setVoiceSupported] = useState(true);
-  const [textInput, setTextInput] = useState('');
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
 
@@ -276,12 +271,14 @@ export default function ScannerPage() {
 
       // Check if voice recognition is available
       if (typeof window === 'undefined') {
-        setVoiceSupported(false);
+        alert('语音识别不可用，请使用 Chrome 浏览器');
+        router.back();
         return;
       }
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognitionAPI) {
-        setVoiceSupported(false);
+        alert('语音识别不可用，请使用 Chrome 浏览器');
+        router.back();
         return;
       }
 
@@ -324,8 +321,10 @@ export default function ScannerPage() {
       recognition.onerror = () => {
         if (mountedRef.current) {
           setIsListening(false);
-          // Fall back to text input instead of retrying voice
-          setVoiceSupported(false);
+          speak('语音识别失败，请重试');
+          waitForSpeech('语音识别失败，请重试').then(() => {
+            if (mountedRef.current) autoStart();
+          });
         }
       };
 
@@ -334,7 +333,10 @@ export default function ScannerPage() {
       };
 
       recognitionRef.current = recognition;
-      try { recognition.start(); } catch { setVoiceSupported(false); }
+      try { recognition.start(); } catch {
+        alert('语音识别启动失败，请使用 Chrome 浏览器');
+        router.back();
+      }
     };
 
     autoStart();
@@ -362,53 +364,16 @@ export default function ScannerPage() {
               <Text style={styles.voiceTitle}>搜索目标</Text>
             </View>
 
-            {voiceSupported ? (
-              <>
-                <View style={[styles.micCircle, isListening && styles.micCircleActive]}>
-                  <FontAwesome6
-                    name={isListening ? 'microphone' : 'microphone-lines'}
-                    size={44}
-                    color={isListening ? COLORS.accentOrange : COLORS.white}
-                  />
-                </View>
-                <Text style={styles.voiceStatus}>
-                  {isListening ? '正在听，请说...' : '准备中...'}
-                </Text>
-              </>
-            ) : (
-              <>
-                <View style={styles.micCircle}>
-                  <FontAwesome6 name="keyboard" size={44} color={COLORS.white} />
-                </View>
-                <Text style={styles.voiceStatus}>请输入你要找的地方</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="例如：洗手间、出口、电梯"
-                  placeholderTextColor={COLORS.white40}
-                  value={target}
-                  onChangeText={setTarget}
-                  autoFocus
-                  returnKeyType="search"
-                  onSubmitEditing={() => {
-                    if (target.trim()) {
-                      targetRef.current = target.trim();
-                      beginCountdown();
-                    }
-                  }}
-                />
-                <TouchableOpacity
-                  style={styles.textSubmitBtn}
-                  onPress={() => {
-                    if (target.trim()) {
-                      targetRef.current = target.trim();
-                      beginCountdown();
-                    }
-                  }}
-                >
-                  <Text style={styles.textSubmitBtnText}>开始搜索</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <View style={[styles.micCircle, isListening && styles.micCircleActive]}>
+              <FontAwesome6
+                name={isListening ? 'microphone' : 'microphone-lines'}
+                size={44}
+                color={isListening ? COLORS.accentOrange : COLORS.white}
+              />
+            </View>
+            <Text style={styles.voiceStatus}>
+              {isListening ? '正在听，请说...' : '准备中...'}
+            </Text>
 
             <TouchableOpacity style={styles.backLink} onPress={goBack}>
               <FontAwesome6 name="arrow-left" size={14} color={COLORS.white40} />
@@ -520,25 +485,6 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 50,
   },
   backLinkText: { fontSize: 14, color: COLORS.white40 },
-  textInput: {
-    width: '80%',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 18,
-    color: COLORS.white,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  textSubmitBtn: {
-    marginTop: 16,
-    backgroundColor: COLORS.accentOrange,
-    borderRadius: 25,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-  },
-  textSubmitBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' as const },
 
   // Countdown
   countdownOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 20 },
