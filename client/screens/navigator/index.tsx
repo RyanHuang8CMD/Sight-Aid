@@ -43,13 +43,21 @@ export default function NavigatorScreen() {
     };
   }, []);
 
+  const isSpeakingRef = useRef(false);
+
   const speak = useCallback((text: string) => {
-    try {
-      Speech.stop();
-    } catch {}
+    // 更新显示文字，保证文字和语音一致
+    setCurrentAdvice(text);
+    try { Speech.stop(); } catch {}
+    isSpeakingRef.current = true;
     setTimeout(() => {
-      Speech.speak(text, { language: 'zh-CN', rate: 1.0 });
-    }, 100);
+      Speech.speak(text, { language: 'zh-CN', rate: 0.95 });
+    }, 150);
+    // 根据文字长度估算朗读时间，防止下一句抢拍
+    const estimatedMs = Math.max(2000, text.length * 280);
+    setTimeout(() => {
+      isSpeakingRef.current = false;
+    }, estimatedMs);
   }, []);
 
   useEffect(() => {
@@ -81,7 +89,6 @@ export default function NavigatorScreen() {
 
       if (data.result && data.result.trim()) {
         const advice = data.result.trim();
-        setCurrentAdvice(advice);
         setObstacleCount(prev => prev + 1);
 
         if (advice !== lastSpokeRef.current && advice !== '安全，继续前行。') {
@@ -90,6 +97,9 @@ export default function NavigatorScreen() {
         } else if (advice === '安全，继续前行。') {
           if (obstacleCount % 5 === 0) {
             speak('前方安全，继续前行。');
+          } else {
+            // 安全时只更新文字不播报，避免抢拍
+            setCurrentAdvice('前方安全，继续前行。');
           }
           lastSpokeRef.current = '';
         }
@@ -136,7 +146,6 @@ export default function NavigatorScreen() {
 
   const startNavigation = useCallback(() => {
     setNavState('navigating');
-    setCurrentAdvice('正在启动导航...');
     speak('实时导航已启动，请注意语音提示。');
 
     setTimeout(() => {
