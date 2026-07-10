@@ -183,7 +183,7 @@ export default function ScannerPage() {
         quality: 0.5, base64: false, skipProcessing: true,
       }).then(async (photo) => {
         if (photo?.uri) {
-          const m = await manipulateAsync(photo.uri, [{ resize: { width: 1024 } }], { compress: 0.6, format: SaveFormat.JPEG, base64: true });
+          const m = await manipulateAsync(photo.uri, [{ resize: { width: 800 } }], { compress: 0.5, format: SaveFormat.JPEG, base64: true });
           if (m?.base64) framesRef.current.push(`data:image/jpeg;base64,${m.base64}`);
         }
         isCapturingRef.current = false;
@@ -200,7 +200,7 @@ export default function ScannerPage() {
           quality: 0.5, base64: false, skipProcessing: true,
         }).then(async (photo) => {
           if (photo?.uri) {
-            const m = await manipulateAsync(photo.uri, [{ resize: { width: 1024 } }], { compress: 0.6, format: SaveFormat.JPEG, base64: true });
+            const m = await manipulateAsync(photo.uri, [{ resize: { width: 800 } }], { compress: 0.5, format: SaveFormat.JPEG, base64: true });
             if (m?.base64) framesRef.current.push(`data:image/jpeg;base64,${m.base64}`);
           }
           isCapturingRef.current = false;

@@ -117,7 +117,7 @@ export default function NavigatorScreen() {
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.4,
+        quality: 0.3,
         base64: true,
         skipProcessing: true,
       });
@@ -131,8 +131,8 @@ export default function NavigatorScreen() {
 
       const manipResult = await ImageManipulator.manipulateAsync(
         `data:image/jpeg;base64,${base64Data}`,
-        [{ resize: { width: 640 } }],
-        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        [{ resize: { width: 480 } }],
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
 
       const resizedBase64 = manipResult.base64;
