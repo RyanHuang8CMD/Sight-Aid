@@ -242,18 +242,20 @@ export default function NavigatorScreen() {
 
       {/* Bottom controls */}
       <View style={styles.bottomBar}>
-        {/* Navigation toggle button */}
-        {navState === 'idle' ? (
-          <TouchableOpacity style={styles.startButton} onPress={startNavigation}>
-            <FontAwesome6 name="location-arrow" size={26} color="#fff" />
-            <Text style={styles.startButtonText}>开始导航</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.stopButton} onPress={stopNavigation}>
-            <FontAwesome6 name="stop" size={26} color="#fff" />
-            <Text style={styles.stopButtonText}>停止导航</Text>
-          </TouchableOpacity>
-        )}
+        {/* Navigation toggle button - single button for start/stop */}
+        <TouchableOpacity
+          style={navState === 'navigating' ? styles.stopButton : styles.startButton}
+          onPress={navState === 'navigating' ? stopNavigation : startNavigation}
+        >
+          <FontAwesome6
+            name={navState === 'navigating' ? 'stop' : 'location-arrow'}
+            size={26}
+            color="#fff"
+          />
+          <Text style={styles.startButtonText}>
+            {navState === 'navigating' ? '停止导航' : '开始导航'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Search mode button - direct toggle */}
         <TouchableOpacity style={styles.searchButton} onPress={goToSearchMode}>

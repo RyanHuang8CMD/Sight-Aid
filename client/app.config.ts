@@ -28,7 +28,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "manifest": {
+        "name": "SIGHT AID",
+        "short_name": "SIGHT AID",
+        "icons": [
+          {
+            "src": "./assets/images/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          },
+          {
+            "src": "./assets/images/favicon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          }
+        ]
+      }
     },
     "plugins": [
       process.env.EXPO_PUBLIC_BACKEND_BASE_URL ? [
