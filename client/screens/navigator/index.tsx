@@ -44,13 +44,16 @@ export default function NavigatorScreen() {
   }, []);
 
   const isSpeakingRef = useRef(false);
+  const navStoppedRef = useRef(false); // 标记导航已停止，阻止延迟的语音继续播放
 
   const speak = useCallback((text: string) => {
+    if (navStoppedRef.current) return; // 导航已停止，不再说话
     // 更新显示文字，保证文字和语音一致
     setCurrentAdvice(text);
     try { Speech.stop(); } catch {}
     isSpeakingRef.current = true;
     setTimeout(() => {
+      if (navStoppedRef.current) return; // 再次检查，防止在150ms延迟期间被停止
       Speech.speak(text, { language: 'zh-CN', rate: 0.95 });
     }, 150);
     // 根据文字长度估算朗读时间，防止下一句抢拍
@@ -145,6 +148,7 @@ export default function NavigatorScreen() {
   }, [analyzeFrame]);
 
   const startNavigation = useCallback(() => {
+    navStoppedRef.current = false; // 清除停止标记
     setNavState('navigating');
     speak('实时导航已启动，请注意语音提示。');
 
@@ -169,6 +173,7 @@ export default function NavigatorScreen() {
   }, [permission, navState]);
 
   const stopNavigation = useCallback(() => {
+    navStoppedRef.current = true; // 标记导航已停止，阻止延迟语音
     setNavState('idle');
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -181,6 +186,7 @@ export default function NavigatorScreen() {
 
   const goToSearchMode = useCallback(() => {
     // 彻底停掉导航的一切：定时器、TTS、状态
+    navStoppedRef.current = true; // 标记导航已停止
     setNavState('idle');
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -191,7 +197,7 @@ export default function NavigatorScreen() {
     try { Speech.stop(); } catch {}
     // 不说话，直接跳转，避免 TTS 残留被搜索页录到
     router.push('/scanner');
-  }, [navState, router]);
+  }, [router]);
 
   return (
     <Screen style={styles.container} safeAreaEdges={['top', 'bottom', 'left', 'right']}>
