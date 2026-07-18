@@ -1,4 +1,5 @@
 {
+  "installCommand": "cd client && npm install",
   "buildCommand": "cd client && npx expo export --platform web",
   "outputDirectory": "client/dist",
   "rewrites": [
