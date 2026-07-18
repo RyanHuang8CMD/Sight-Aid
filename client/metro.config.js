@@ -5,6 +5,9 @@ const { withUniwindConfig } = require('uniwind/metro');
 
 const config = getDefaultConfig(__dirname);
 
+// 强制指定项目根目录为 client，防止 Metro 往 Vercel 根目录找 node_modules
+config.projectRoot = __dirname;
+
 // 安全地获取 Expo 的默认排除列表
 const existingBlockList = [].concat(config.resolver.blockList || []);
 
