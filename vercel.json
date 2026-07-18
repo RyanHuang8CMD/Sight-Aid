@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install --prefix client",
+  "installCommand": "cd client && npm install && cd .. && ln -sf client/node_modules node_modules",
   "buildCommand": "cd client && npx expo export --platform web",
   "outputDirectory": "client/dist",
   "rewrites": [
