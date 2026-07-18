@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd client && npm install && ln -sfn $(pwd)/node_modules /vercel/path0/node_modules",
+  "installCommand": "cd client && npm install && mkdir -p /vercel/path0/node_modules && echo '{\"name\":\"root\"}' > /vercel/path0/node_modules/package.json",
   "buildCommand": "cd client && npx expo export --platform web",
   "outputDirectory": "client/dist",
   "rewrites": [
