@@ -1,8 +1,5 @@
 {
   "buildCommand": "echo 'using pre-built files'",
   "outputDirectory": "client/dist",
-  "installCommand": "echo 'skip install'",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "installCommand": "echo 'skip install'"
 }
