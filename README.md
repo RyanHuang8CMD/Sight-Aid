@@ -3,6 +3,8 @@
 <img width="2560" height="1352" alt="image" src="https://github.com/user-attachments/assets/671b4211-6a84-4699-8c34-d8d9e9796751" />
 <img width="2556" height="1408" alt="image" src="https://github.com/user-attachments/assets/be293c6e-71fa-45fd-a5e0-27269f2aee97" />
 <img width="2554" height="1356" alt="image" src="https://github.com/user-attachments/assets/cc736584-020a-4f54-9908-4d6e5e54975d" />
+<img width="2550" height="1380" alt="image" src="https://github.com/user-attachments/assets/c1df9c51-f5fe-4104-851a-48949df5cc40" />
+<img width="2560" height="1330" alt="image" src="https://github.com/user-attachments/assets/36f25603-9966-4ae9-9352-33419a12f496" />
 
 SightAid AI is a real-time web-based visual assistance application for visually impaired people.
 Combining device camera and multimodal large language model, it provides scene description, object detection, obstacle warning, text reading and navigation assistance. It helps visually impaired users perceive the world through audio feedback.
